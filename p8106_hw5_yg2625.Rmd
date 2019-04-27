@@ -9,6 +9,8 @@ output: pdf_document
 knitr::opts_chunk$set(echo = TRUE)
 library(ISLR)
 library(caret)
+library(e1071)
+library(mlbench)
 
 library(tidyverse)
 set.seed(1)
@@ -58,3 +60,47 @@ pred_test = predict(svml.fit, newdata = test_data, type = "raw")
 mean(test_data$purchase != pred_test)
 ```
 The training error is 0.161, the test error is 0.170.
+
+# (b) Fit a support vector machine with a radial kernel to the training data. What are the training and test error rates?
+```{r}
+svmr.grid <- expand.grid(C = exp(seq(-5,2,len=20)),
+                         sigma = exp(seq(-8,-1,len=10)))
+set.seed(1) 
+# fit model
+svmr.fit <- train(purchase ~ ., train_data,
+                  method = "svmRadial",
+                  preProcess = c("center", "scale"),
+                  tuneGrid = svmr.grid,
+                  trControl = ctrl)
+# model output
+svmr.fit$finalModel
+# best tunning parameter
+svmr.fit$bestTune
+# Accuracy plot
+ggplot(svmr.fit, highlight = TRUE)
+# trainning error rate
+pred_train2 = predict(svmr.fit)
+mean(train_data$purchase != pred_train2)
+# test error rate
+pred_test2 = predict(svmr.fit, newdata = test_data, type = "raw")
+mean(test_data$purchase != pred_test2)
+```
+The training error rate is 0.156 and the test error rate is 0.170.
+
+# (c) Which approach seems to give a better result on this data?
+```{r}
+resamp <- resamples(list(svmr = svmr.fit, svml = svml.fit))
+bwplot(resamp)
+
+# test data performance
+pred.svml <- predict(svml.fit, newdata = test_data)
+pred.svmr <- predict(svmr.fit, newdata = test_data)
+
+# linear kernel
+confusionMatrix(data = pred.svml, 
+                reference = test_data$purchase)
+# radial kernel
+confusionMatrix(data = pred.svmr, 
+                reference = test_data$purchase)
+```
+Based on the confusion matrix result, linear kernel and radial provides the same accracy and kappa on the test data. However, on the boxplot, svmr provides slightly larger kappa and accuracy compared to svml. Hence, radial kernel approach seems to give a better result on the data.
